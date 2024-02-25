@@ -11,7 +11,7 @@ fn hex_to_base64(input: &str) -> String {
 }
 
 fn xor(left: Vec<u8>, right: Vec<u8>) -> Vec<u8> {
-    let result: Vec<u8> = zip(left, right).into_iter().map(|(l, r)| l ^ r).collect();
+    let result: Vec<u8> = zip(left, right).map(|(l, r)| l ^ r).collect();
 
     return result;
 }
