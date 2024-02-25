@@ -17,6 +17,9 @@ fn xor(left: Vec<u8>, right: Vec<u8>) -> Vec<u8> {
 }
 
 fn brute_force_single_byte_xor(ciphertext: Vec<u8>) -> Vec<u8> {
+    const PENALTY_CHARACTER_FREQUENCY: u32 = 1;
+    const PENALTY_NEITHER_ALPHABETIC_NOR_WHITESPACE: u32 = 5;
+
     // Distance is bad. Small distance means similar to English language
     let mut smallest_distance = u32::MAX;
     let mut likely_plaintext = vec![];
@@ -76,10 +79,10 @@ fn brute_force_single_byte_xor(ciphertext: Vec<u8>) -> Vec<u8> {
             // Hack: penalize heavily if not a normal english character
             if !plain_char.is_alphabetic() && !plain_char.is_ascii_whitespace() {
                 // make match less likely if we get a non-printable character
-                vector_distance += 5;
+                vector_distance += PENALTY_NEITHER_ALPHABETIC_NOR_WHITESPACE;
             }
             if !plain_char.eq_ignore_ascii_case(&char) {
-                vector_distance += 1;
+                vector_distance += PENALTY_CHARACTER_FREQUENCY;
                 continue;
             }
             // println!("No distance increase: Match on plain {plain_char} and {char}");
