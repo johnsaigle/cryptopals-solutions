@@ -1,10 +1,13 @@
 // Using unit tests which mean functions are never called in a normal way
 #![allow(dead_code)]
 #![allow(clippy::needless_return)]
-
 use ::core::iter::zip;
-use core::panic;
 use std::collections::BTreeMap;
+use std::fs::File;
+use std::io::{prelude::*, BufReader};
+
+use anyhow::Ok;
+// use anyhow::Error;
 
 fn hex_to_base64(input: &str) -> String {
     base64::encode(hex::decode(input).unwrap())
@@ -16,7 +19,7 @@ fn xor(left: Vec<u8>, right: Vec<u8>) -> Vec<u8> {
     return result;
 }
 
-fn brute_force_single_byte_xor(ciphertext: Vec<u8>) -> Vec<u8> {
+fn brute_force_single_byte_xor(ciphertext: Vec<u8>) -> (Vec<u8>, u32) {
     const PENALTY_CHARACTER_FREQUENCY: u32 = 1;
     const PENALTY_NEITHER_ALPHABETIC_NOR_WHITESPACE: u32 = 5;
 
@@ -98,7 +101,33 @@ fn brute_force_single_byte_xor(ciphertext: Vec<u8>) -> Vec<u8> {
             likely_plaintext = plaintext;
         }
     }
-    return likely_plaintext;
+    return (likely_plaintext, smallest_distance);
+}
+
+/// Iterate over a file containing ciphertext and find which one is encrypted.
+fn detect_single_byte_xor() -> Result<(Vec<u8>, u32), anyhow::Error> {
+    let mut plaintext = vec![];
+    let mut smallest_distance = u32::MAX;
+
+    let file = File::open("data/set1chall4.txt")?;
+    let reader = BufReader::new(file);
+
+    for line in reader.lines() {
+        let cipher_bytes =
+            hex::decode(line.unwrap()).expect("Ciphertext line should be hex-decodable");
+        let (this_plaintext, this_distance) = brute_force_single_byte_xor(cipher_bytes);
+
+        if this_distance < smallest_distance {
+            smallest_distance = this_distance;
+            plaintext = this_plaintext;
+        }
+    }
+
+    if plaintext.is_empty() {
+        return Err(anyhow::format_err!("Plaintext was never inititalized"));
+    }
+
+    Ok((plaintext, smallest_distance))
 }
 
 fn main() {}
@@ -129,13 +158,24 @@ fn test_set1_challenge2() {
 fn test_set1_challenge3() {
     let input: String =
         "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736".to_string();
-    let plaintext_bytes = brute_force_single_byte_xor(hex::decode(input).unwrap().to_vec());
+    let (plaintext_bytes, _) = brute_force_single_byte_xor(hex::decode(input).unwrap().to_vec());
     let plaintext_string =
         String::from_utf8(plaintext_bytes).expect("plaintext should be printable");
     // This string isn't found on the challenge page but it's correct.
     // Ensure that the function spits this out.
     assert_eq!(
         "Cooking MC's like a pound of bacon".to_string(),
+        plaintext_string
+    );
+}
+
+#[test]
+fn test_set1_challenge4() {
+    let (plaintext_bytes, _) = detect_single_byte_xor().unwrap();
+    let plaintext_string =
+        String::from_utf8(plaintext_bytes).expect("plaintext should be printable");
+    assert_eq!(
+        "Now that the party is jumping\n".to_string(),
         plaintext_string
     );
 }
