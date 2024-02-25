@@ -2,11 +2,14 @@
 #![allow(dead_code)]
 #![allow(clippy::needless_return)]
 use ::core::iter::zip;
+use bitvec::prelude::*;
+use core::panic;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
 
 use anyhow::Ok;
+use bitvec::view::BitView;
 // use anyhow::Error;
 
 fn hex_to_base64(input: &str) -> String {
@@ -131,15 +134,38 @@ fn detect_single_byte_xor() -> Result<(Vec<u8>, u32), anyhow::Error> {
 }
 
 fn encrypt_repeating_key_xor(plaintext: Vec<u8>, key: Vec<u8>) -> Vec<u8> {
-
     // let key = "ICE".as_bytes();
-    // Do division: q = mn + r. 
+    // Do division: q = mn + r.
     let quotient = plaintext.len() / key.len();
     let remainder = plaintext.len() % key.len();
     let mut key_vector: Vec<u8> = key.repeat(quotient);
     key_vector.extend_from_slice(&key[0..remainder]);
 
     xor(plaintext, key_vector)
+}
+
+fn hamming_distance(left: Vec<u8>, right: Vec<u8>) -> u32 {
+    if left.len() != right.len() {
+        panic!("Vectors are of different length");
+    }
+    let mut distance = 0;
+    for (left_byte, right_byte) in zip(left, right) {
+        // Compare each byte at the level of individual bits
+        let left_bit_slice = left_byte.view_bits::<Lsb0>();
+        let right_bit_slice = right_byte.view_bits::<Lsb0>();
+
+        // Sanity check for length: Must always be equal to 8. Both slices must have the same length.
+        let bit_slice_length = left_bit_slice.len();
+        if bit_slice_length != right_bit_slice.len() {
+            panic!("Bit vectors are of different length");
+        }
+        for i in 0..bit_slice_length {
+            if left_bit_slice.get(i) != right_bit_slice.get(i) {
+                distance += 1;
+            }
+        }
+    }
+    distance
 }
 
 fn main() {}
@@ -194,7 +220,9 @@ fn test_set1_challenge4() {
 
 #[test]
 fn test_set1_challenge5() {
-    let plaintext = "Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal".as_bytes().to_vec();
+    let plaintext = "Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal"
+        .as_bytes()
+        .to_vec();
     let key = "ICE".as_bytes().to_vec();
 
     let ciphertext = encrypt_repeating_key_xor(plaintext, key);
@@ -204,4 +232,11 @@ fn test_set1_challenge5() {
         "0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f",
         ciphertext_hexstring
     );
+}
+
+#[test]
+fn test_hamming_distance() {
+    let left = "this is a test".as_bytes().to_vec();
+    let right = "wokka wokka!!!".as_bytes().to_vec();
+    assert_eq!(37u32, hamming_distance(left, right));
 }
