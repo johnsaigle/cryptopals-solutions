@@ -144,6 +144,7 @@ fn encrypt_repeating_key_xor(plaintext: Vec<u8>, key: Vec<u8>) -> Vec<u8> {
     xor(plaintext, key_vector)
 }
 
+/// Calculate bitwise Hamming distance between two Vectors of bytes.
 fn hamming_distance(left: Vec<u8>, right: Vec<u8>) -> u32 {
     if left.len() != right.len() {
         panic!("Vectors are of different length");
